@@ -1,0 +1,106 @@
+---
+title: "Lab 3 Part 1 Binary Logistic Regression"
+author: "Vanessa Rathbone"
+date: "1/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(palmerpenguins)
+library(GGally)
+library(broom)
+library(jtools)
+```
+
+```{r}
+penguins %>% 
+  select(species, bill_length_mm:sex) %>% 
+  ggpairs(aes(color = species))
+
+```
+
+Create a subset with only Adelle and Chinstrap penguins.
+```{r}
+adelle_chinstrap <- penguins %>% 
+  filter(species %in% c("Adelie", "Chinstrap")) %>% 
+  mutate(species = fct_drop(species)) #drop observations for any factor that doesn't have any obervations, here Gentoo
+```
+
+Let's dataviz these two species
+```{r}
+ggplot(data = adelle_chinstrap, aes(x = body_mass_g, y = flipper_length_mm)) +
+  geom_point(aes(color = sex)) +
+  facet_wrap(~species)
+```
+
+Binary Logistic Regression
+
+- Body Mass
+- Flipper Length
+- Penguin Sex
+
+```{r}
+adelle_chinstrap_blr <- glm(species ~ body_mass_g + flipper_length_mm + sex, data = adelle_chinstrap,
+                         family = "binomial")
+```
+
+Take a look at the outcomes
+```{r}
+adelle_chinstrap_blr
+
+summary(adelle_chinstrap_blr)
+
+```
+
+```{r}
+ggplot(adelle_chinstrap, aes(x = species, y = flipper_length_mm)) +
+  geom_jitter(aes(color = sex))
+```
+
+What are the actual probabilities of being a Chinstrap for each of the existing observations in our adelle_chinstrap data frame? 
+```{r}
+blr_fitted <- adelle_chinstrap_blr %>% 
+  broom::augment(type.predict = "response")
+#check "fitted" value in the data frame, this is the probability of being a chinstrap
+
+```
+
+Plotting fitted probabilities
+```{r}
+ggplot(blr_fitted, aes(x = flipper_length_mm, y = .fitted)) +
+  geom_point(aes(color = sex, pch = species)) +
+  geom_smooth(aes(color = sex), se = FALSE) +
+  labs(x = "Flipper length (mm)",
+       y = "Probability of outcome Chinstrap") 
+
+```
+
+Plot model based on different variables using effect_plot(). Good for quick looks at one variables effect on probability. 
+```{r}
+effect_plot(adelle_chinstrap_blr,
+            pred = flipper_length_mm, 
+            y.label = "Probability of Chinstrap",
+            interval = TRUE)
+
+effect_plot(adelle_chinstrap_blr,
+            pred = body_mass_g, 
+            y.label = "Probability of Chinstrap",
+            interval = TRUE)
+```
+
+What is the probability that a female penguin eighing 3410 g with a flipper length of 192mm is a Chinstrap? 
+```{r}
+ex_1 <- predict(adelle_chinstrap_blr, 
+                data.frame(sex = "female",
+                           body_mass_g = 3410,
+                           flipper_length_mm = 192),
+                type = "response")
+
+ex_1
+
+#given these values there is a 0.40 or 40% chance that this penguin is a Chinstrap.
+```
+
